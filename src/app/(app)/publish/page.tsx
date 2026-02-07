@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
 import Container from "@/components/layout/Container";
 import Stack from "@/components/layout/Stack";
 import Title from "@/components/typography/Title";
 import Text from "@/components/typography/Text";
+import Meta from "@/components/typography/Meta";
 import useUploadForm from "@/components/client/useUploadForm";
 import UploadPanel from "@/components/publishing/UploadPanel";
 import ReviewPanel from "@/components/publishing/ReviewPanel";
@@ -86,6 +87,16 @@ export default function Page() {
 
           <Stack gap="xs">
             <Title level="h2">Review</Title>
+            <Stack gap="xs">
+              <Meta>Description</Meta>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={4}
+                className="border-hairline border-rule rounded-sm bg-transparent text-ink"
+              />
+              <Text>Optional. Keep it short—extra metadata increases cost.</Text>
+            </Stack>
             <ReviewPanel
               arTx={arTx}
               title={title}
@@ -272,7 +283,7 @@ export default function Page() {
               )}
             </div>
           )}
-          {error && (
+          {error && !(file && error.includes("Missing sizeBytes")) && (
             <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {formatError(error)}
             </div>
