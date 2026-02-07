@@ -11,6 +11,9 @@ import UploadPanel from "@/components/publishing/UploadPanel";
 import ReviewPanel from "@/components/publishing/ReviewPanel";
 import ActionsPanel from "@/components/publishing/ActionsPanel";
 import { platformCopy } from "@/lib/copy/platform";
+import MetaBlock from "@/components/docs/MetaBlock";
+import MetaRow from "@/components/docs/MetaRow";
+import ProofBlock from "@/components/docs/ProofBlock";
 
 export default function UploadForm() {
   const {
@@ -205,6 +208,26 @@ export default function UploadForm() {
           <div className="mt-1 text-green-800">
             {platformCopy.permanence.successLine}
           </div>
+          <MetaBlock>
+            {title ? <MetaRow label="Title">{title}</MetaRow> : null}
+            {mime ? <MetaRow label="MIME">{mime}</MetaRow> : null}
+            {typeof sizeBytes === "number" ? (
+              <MetaRow label="Size">{sizeBytes} bytes</MetaRow>
+            ) : null}
+            {address ? <MetaRow label="Owner">{address}</MetaRow> : null}
+          </MetaBlock>
+          <ProofBlock
+            rows={[
+              {
+                label: "Arweave",
+                value: arweaveUrl ?? arTx,
+              },
+              {
+                label: "Transaction",
+                value: txHash ?? "",
+              },
+            ]}
+          />
           {arweaveUrl && (
             <div className="mt-2">
               <span className="font-medium">Arweave:</span>{" "}
