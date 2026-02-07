@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
 import Container from "@/components/layout/Container";
 import Stack from "@/components/layout/Stack";
@@ -9,9 +10,14 @@ import useUploadForm from "@/components/client/useUploadForm";
 import UploadPanel from "@/components/publishing/UploadPanel";
 import ReviewPanel from "@/components/publishing/ReviewPanel";
 import ActionsPanel from "@/components/publishing/ActionsPanel";
+import MetaBlock from "@/components/docs/MetaBlock";
+import MetaRow from "@/components/docs/MetaRow";
+import ProofBlock from "@/components/docs/ProofBlock";
 import { platformCopy } from "@/lib/copy/platform";
 
 export default function Page() {
+  const [metadataBytes, setMetadataBytes] = useState(0);
+
   const {
     file,
     arTx,
@@ -44,7 +50,18 @@ export default function Page() {
     handleUploadToArweave,
     handleApproveAndPost,
     handleFileSelected,
-  } = useUploadForm();
+  } = useUploadForm({ pricingExtraBytes: metadataBytes });
+
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    const payload = { title, description };
+    const json = JSON.stringify(payload);
+    setMetadataBytes(new TextEncoder().encode(json).length);
+  }, [title, description]);
+
+  const totalBytes = (file?.size ?? 0) + metadataBytes;
+
 
   return (
     <AppShell>
@@ -83,6 +100,8 @@ export default function Page() {
               status={status}
               uploadProgress={uploadProgress}
             />
+            <Text>Metadata: {metadataBytes} bytes</Text>
+            <Text>Total: {totalBytes} bytes</Text>
           </Stack>
 
           <Stack gap="xs">
@@ -206,6 +225,25 @@ export default function Page() {
               <div className="mt-1 text-green-800">
                 {platformCopy.permanence.successLine}
               </div>
+              <MetaBlock>
+                {title ? <MetaRow label="Title">{title}</MetaRow> : null}
+                {mime ? <MetaRow label="MIME">{mime}</MetaRow> : null}
+                {typeof sizeBytes === "number" ? (
+                  <MetaRow label="Size">{sizeBytes} bytes</MetaRow>
+                ) : null}
+              </MetaBlock>
+              <ProofBlock
+                rows={[
+                  {
+                    label: "Arweave",
+                    value: arweaveUrl ?? arTx,
+                  },
+                  {
+                    label: "Transaction",
+                    value: txHash ?? "",
+                  },
+                ]}
+              />
               {arweaveUrl && (
                 <div className="mt-2">
                   <span className="font-medium">Arweave:</span>{" "}

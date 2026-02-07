@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
 import { docPayGoAbi } from "@/lib/contractAbi";
 import { erc20Abi } from "@/lib/erc20Abi";
@@ -13,7 +13,7 @@ type UploadState =
   | "done"
   | "error";
 
-export default function useUploadForm() {
+export default function useUploadForm(options?: { pricingExtraBytes?: number }) {
   const { address, isConnected } = useAccount();
   const [file, setFile] = useState<File | null>(null);
   const [arTx, setArTx] = useState("");
@@ -69,10 +69,20 @@ export default function useUploadForm() {
 
   const { writeContractAsync } = useWriteContract();
 
-  const sizeBytes = file?.size ?? 0;
+  const extra = options?.pricingExtraBytes;
+  const extraBytes =
+    Number.isFinite(extra) && (extra as number) >= 0 ? (extra as number) : 0;
+  const sizeBytes = (file?.size ?? 0) + extraBytes;
   const priceCents = quote?.priceCents ?? estimate?.priceCents ?? 0;
   const usdcUnits = useMemo(() => centsToUsdcUnits(priceCents), [priceCents]);
   const priceUsd = useMemo(() => (priceCents / 100).toFixed(2), [priceCents]);
+
+  useEffect(() => {
+    if (!file) return;
+    fetchEstimate(sizeBytes).catch((err) =>
+      setError(err instanceof Error ? err.message : "Estimate failed.")
+    );
+  }, [sizeBytes, file]);
   const breakdown = useMemo(() => {
     const source = quote ?? estimate;
     if (!source || sizeBytes === 0) return null;
@@ -223,7 +233,7 @@ export default function useUploadForm() {
     setQuote(null);
     setEstimate(null);
     if (f) {
-      fetchEstimate(f.size).catch((err) =>
+      fetchEstimate(sizeBytes).catch((err) =>
         setError(err instanceof Error ? err.message : "Estimate failed.")
       );
     }
