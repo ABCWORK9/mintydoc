@@ -79,6 +79,7 @@ export default function useUploadForm(options?: { pricingExtraBytes?: number }) 
 
   useEffect(() => {
     if (!file) return;
+    if (sizeBytes <= 0) return;
     fetchEstimate(sizeBytes).catch((err) =>
       setError(err instanceof Error ? err.message : "Estimate failed.")
     );
@@ -115,7 +116,7 @@ export default function useUploadForm(options?: { pricingExtraBytes?: number }) 
       setArTx(data.txId);
       setArweaveUrl(data.url);
       setDevMode(Boolean(data.devMode));
-      if (isConnected && address) {
+      if (isConnected && address && sizeBytes > 0) {
         await fetchQuote(data.txId, sizeBytes, address);
       }
       setUploadProgress(100);
@@ -232,7 +233,7 @@ export default function useUploadForm(options?: { pricingExtraBytes?: number }) 
     setArTx("");
     setQuote(null);
     setEstimate(null);
-    if (f) {
+    if (f && sizeBytes > 0) {
       fetchEstimate(sizeBytes).catch((err) =>
         setError(err instanceof Error ? err.message : "Estimate failed.")
       );
