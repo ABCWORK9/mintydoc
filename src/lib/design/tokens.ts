@@ -1,0 +1,45 @@
+export const tokens = {
+  colors: {
+    bg: "var(--color-bg)",
+    ink: "var(--color-ink)",
+    muted: "var(--color-muted)",
+    rule: "var(--color-rule)",
+    proof: "var(--color-proof)",
+  },
+  space: {
+    "1": "var(--space-1)",
+    "2": "var(--space-2)",
+    "3": "var(--space-3)",
+    "4": "var(--space-4)",
+    "5": "var(--space-5)",
+    "6": "var(--space-6)",
+    "7": "var(--space-7)",
+    "8": "var(--space-8)",
+    "9": "var(--space-9)",
+    "10": "var(--space-10)",
+    "11": "var(--space-11)",
+    "12": "var(--space-12)",
+  },
+  text: {
+    xs: "var(--text-xs)",
+    sm: "var(--text-sm)",
+    base: "var(--text-base)",
+    lg: "var(--text-lg)",
+    xl: "var(--text-xl)",
+    "2xl": "var(--text-2xl)",
+  },
+  leading: {
+    tight: "var(--leading-tight)",
+    normal: "var(--leading-normal)",
+    relaxed: "var(--leading-relaxed)",
+  },
+  border: {
+    hairline: "var(--border-hairline)",
+    thin: "var(--border-thin)",
+  },
+  radius: {
+    sm: "var(--radius-sm)",
+    md: "var(--radius-md)",
+    lg: "var(--radius-lg)",
+  },
+} as const;

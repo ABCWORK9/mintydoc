@@ -1,0 +1,82 @@
+export const docPayGoAbi = [
+  {
+    inputs: [
+      { internalType: "address", name: "_token", type: "address" },
+      { internalType: "address", name: "_signer", type: "address" },
+    ],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "address", name: "author", type: "address" },
+      { indexed: true, internalType: "bytes32", name: "docId", type: "bytes32" },
+      { indexed: false, internalType: "string", name: "arweaveTx", type: "string" },
+      { indexed: false, internalType: "uint256", name: "sizeBytes", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "timestamp", type: "uint256" },
+    ],
+    name: "DocumentPosted",
+    type: "event",
+  },
+  {
+    inputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+    name: "docs",
+    outputs: [
+      { internalType: "address", name: "author", type: "address" },
+      { internalType: "string", name: "arweaveTx", type: "string" },
+      { internalType: "string", name: "title", type: "string" },
+      { internalType: "string", name: "mime", type: "string" },
+      { internalType: "uint256", name: "sizeBytes", type: "uint256" },
+      { internalType: "uint256", name: "timestamp", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "string", name: "arTx", type: "string" },
+      { internalType: "string", name: "title", type: "string" },
+      { internalType: "string", name: "mime", type: "string" },
+      { internalType: "uint256", name: "sizeBytes", type: "uint256" },
+      { internalType: "uint256", name: "priceCents", type: "uint256" },
+      { internalType: "uint256", name: "expiresAt", type: "uint256" },
+      { internalType: "bytes", name: "signature", type: "bytes" },
+    ],
+    name: "post",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "signer",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "newSigner", type: "address" }],
+    name: "updateSigner",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "token",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "to", type: "address" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "withdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
