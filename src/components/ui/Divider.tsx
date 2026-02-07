@@ -1,3 +1,3 @@
 export default function Divider() {
-  return <hr />;
+  return <hr className="border-rule" />;
 }

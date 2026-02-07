@@ -1,7 +1,21 @@
+import Link from "next/link";
+import { siteConfig } from "@/lib/config/site";
+
 export default function SiteHeader() {
   return (
     <header>
-      <div>MintyDoc</div>
+      <nav aria-label="Primary">
+        <Link href="/">{siteConfig.name}</Link>
+        <div>
+          {siteConfig.primaryNav.map((item) => (
+            <Link key={item.href} href={item.href}>
+              {item.label}
+            </Link>
+          ))}
+          {/* TODO: show when wallet/auth state is available */}
+          {/* <Link href="/me">My documents</Link> */}
+        </div>
+      </nav>
     </header>
   );
 }

@@ -45,15 +45,28 @@
   --measure-wide: 80rem;
 
   /* Colors */
-  --color-bg: #ffffff;
-  --color-ink: #111111;
-  --color-muted: #6b7280;
-  --color-rule: #e5e7eb;
-  --color-proof: #0f766e;
+  --color-bg: #FAFAF8;
+  --color-ink: #1F1F1F;
+  --color-muted: #666660;
+  --color-rule: #E5E5E1;
+  --color-proof: #3B5CCC;
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-ui), Arial, Helvetica, sans-serif;
+}
+
+a {
+  color: var(--color-proof);
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-proof);
+  outline-offset: 2px;
 }
