@@ -54,6 +54,8 @@ export default function Page() {
   } = useUploadForm({ pricingExtraBytes: metadataBytes });
 
   const [description, setDescription] = useState("");
+  const SOFT_DESCRIPTION_LIMIT = 500;
+  const HARD_DESCRIPTION_LIMIT = 5000;
 
   useEffect(() => {
     const payload = { title, description };
@@ -93,9 +95,19 @@ export default function Page() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
+                maxLength={HARD_DESCRIPTION_LIMIT}
                 className="border-hairline border-rule rounded-sm bg-transparent text-ink"
               />
               <Text>Optional. Keep it short—extra metadata increases cost.</Text>
+              <Text>
+                {description.length} / {HARD_DESCRIPTION_LIMIT} characters
+              </Text>
+              {description.length > SOFT_DESCRIPTION_LIMIT && (
+                <Text>Tip: shorter descriptions reduce cost.</Text>
+              )}
+              {description.length >= HARD_DESCRIPTION_LIMIT && (
+                <Text>Reached maximum description length.</Text>
+              )}
             </Stack>
             <ReviewPanel
               arTx={arTx}
