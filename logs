@@ -578,3 +578,15 @@
 [2/7/2026, 10:24:51 PM] POST /chunk 200 436ms 
 [2/7/2026, 10:24:51 PM] POST /chunk 200 449ms 
 [2/7/2026, 10:24:52 PM] POST /chunk 200 428ms 
+[2/8/2026, 1:09:23 PM] GET /tx_anchor 200 35ms 
+[2/8/2026, 1:09:23 PM] GET /price/750137 200 0ms 
+[2/8/2026, 1:09:23 PM] POST /tx 200 240ms 
+[2/8/2026, 1:09:24 PM] POST /chunk 200 842ms 
+[2/8/2026, 1:09:25 PM] POST /chunk 200 1,273ms 
+[2/8/2026, 1:09:26 PM] POST /chunk 200 1,275ms 
+[2/8/2026, 1:10:13 PM] GET /tx_anchor 200 17ms 
+[2/8/2026, 1:10:13 PM] GET /price/750137 200 1ms 
+[2/8/2026, 1:10:14 PM] POST /tx 200 258ms 
+[2/8/2026, 1:10:15 PM] POST /chunk 200 773ms 
+[2/8/2026, 1:10:15 PM] POST /chunk 200 689ms 
+[2/8/2026, 1:10:16 PM] POST /chunk 200 791ms 

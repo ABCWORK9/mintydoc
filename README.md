@@ -20,6 +20,16 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## News vs Core Publishing
+
+Core is the default publishing mode and is open to all users.
+
+News is a permissioned, editorial/archival surface. News entries are stored on Arweave and tagged with `Minty-Category=news` and `Minty-EntryType=*`. They are indexed via the Arweave GraphQL gateway and are publicly readable.
+
+There is no database yet to keep the system simple, decentralized, and reversible.
+
+Allowlisting is env-based via `NEWS_ALLOWLIST`, which is a comma-separated list of wallet addresses.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

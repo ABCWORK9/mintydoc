@@ -2,7 +2,7 @@ import AppShell from "@/components/layout/AppShell";
 import Container from "@/components/layout/Container";
 import Stack from "@/components/layout/Stack";
 import Title from "@/components/typography/Title";
-import DocList from "@/components/lists/DocList";
+import { DocList } from "@/components/lists/DocList";
 import type { DocRowData } from "@/components/lists/DocRow";
 
 const placeholderDocs: DocRowData[] = [

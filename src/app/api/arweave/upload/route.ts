@@ -103,6 +103,8 @@ export async function POST(req: Request) {
   try {
     const form = await req.formData();
     const file = form.get("file");
+    const category = form.get("category");
+    const entryType = form.get("entryType");
 
     if (!(file instanceof File)) {
       return NextResponse.json(
@@ -141,6 +143,16 @@ export async function POST(req: Request) {
     const tx = await arweave.createTransaction({ data: bytes }, wallet);
     if (file.type) {
       tx.addTag("Content-Type", file.type);
+    }
+    if (category === "news") {
+      tx.addTag("Minty-Category", "news");
+    }
+    if (
+      entryType === "primary" ||
+      entryType === "secondary" ||
+      entryType === "commentary"
+    ) {
+      tx.addTag("Minty-EntryType", entryType);
     }
 
     await arweave.transactions.sign(tx, wallet);

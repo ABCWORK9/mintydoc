@@ -12,6 +12,7 @@ export default function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <Link href="/news">News</Link>
           {/* TODO: show when wallet/auth state is available */}
           {/* <Link href="/me">My documents</Link> */}
         </div>

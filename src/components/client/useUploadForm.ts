@@ -15,7 +15,12 @@ type UploadState =
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12 MB
 
-export default function useUploadForm(options?: { pricingExtraBytes?: number }) {
+export default function useUploadForm(options?: {
+  pricingExtraBytes?: number;
+  description?: string;
+  publishCategory?: "news";
+  publishEntryType?: "primary" | "secondary" | "commentary";
+}) {
   const { address, isConnected } = useAccount();
   const [file, setFile] = useState<File | null>(null);
   const [arTx, setArTx] = useState("");
@@ -107,6 +112,12 @@ export default function useUploadForm(options?: { pricingExtraBytes?: number }) 
       setUploadProgress(0);
       const form = new FormData();
       form.append("file", file);
+      if (options?.publishCategory === "news") {
+        form.append("category", "news");
+        if (options.publishEntryType) {
+          form.append("entryType", options.publishEntryType);
+        }
+      }
       const res = await fetch("/api/arweave/upload", {
         method: "POST",
         body: form,

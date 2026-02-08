@@ -16,9 +16,21 @@ import MetaRow from "@/components/docs/MetaRow";
 import ProofBlock from "@/components/docs/ProofBlock";
 import { platformCopy } from "@/lib/copy/platform";
 import { getExplorerTxUrl } from "@/lib/chain";
+import Button from "@/components/ui/Button";
+import { cn } from "@/lib/utils/cn";
+
+type PublishMode = "core" | "news";
+type NewsEntryType = "primary" | "secondary" | "commentary";
 
 export default function Page() {
   const [metadataBytes, setMetadataBytes] = useState(0);
+  const [mode, setMode] = useState<PublishMode>("core");
+  const [isNewsAllowed, setIsNewsAllowed] = useState(false);
+  const [entryType, setEntryType] = useState<NewsEntryType | "">("");
+  const [entryTypeTouched, setEntryTypeTouched] = useState(false);
+  const [description, setDescription] = useState("");
+  const SOFT_DESCRIPTION_LIMIT = 500;
+  const HARD_DESCRIPTION_LIMIT = 5000;
 
   const {
     address,
@@ -54,20 +66,65 @@ export default function Page() {
     handleUploadToArweave,
     handleApproveAndPost,
     handleFileSelected,
-  } = useUploadForm({ pricingExtraBytes: metadataBytes });
-
-  const [description, setDescription] = useState("");
-  const SOFT_DESCRIPTION_LIMIT = 500;
-  const HARD_DESCRIPTION_LIMIT = 5000;
+  } = useUploadForm({
+    pricingExtraBytes: metadataBytes,
+    description,
+    publishCategory: mode === "news" ? "news" : undefined,
+    publishEntryType: mode === "news" ? entryType : undefined,
+  });
 
   useEffect(() => {
-    const payload = { title, description };
+    const payload =
+      mode === "news"
+        ? {
+            title,
+            description,
+            category: "news",
+            ...(entryType ? { entryType } : {}),
+          }
+        : { title, description };
     const json = JSON.stringify(payload);
     setMetadataBytes(new TextEncoder().encode(json).length);
-  }, [title, description]);
+  }, [title, description, mode, entryType]);
+
+  useEffect(() => {
+    if (mode === "news" && !isNewsAllowed) {
+      setMode("core");
+    }
+  }, [isNewsAllowed, mode]);
+
+  useEffect(() => {
+    if (mode === "core") {
+      setEntryType("");
+      setEntryTypeTouched(false);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (!address) {
+      setIsNewsAllowed(false);
+      return;
+    }
+    const controller = new AbortController();
+    const checkAllowed = async () => {
+      try {
+        const response = await fetch(
+          `/api/news/can-post?address=${address}`,
+          { signal: controller.signal }
+        );
+        const data = await response.json();
+        setIsNewsAllowed(Boolean(data?.allowed));
+      } catch {
+        setIsNewsAllowed(false);
+      }
+    };
+    checkAllowed();
+    return () => controller.abort();
+  }, [address]);
 
   const totalBytes = (file?.size ?? 0) + metadataBytes;
   const canPrepare = Boolean(file) && status !== "uploading";
+  const entryTypeError = mode === "news" && entryType === "";
   const canPublish =
     isConnected &&
     Boolean(address) &&
@@ -75,7 +132,8 @@ export default function Page() {
     Boolean(arTx) &&
     Boolean(quote) &&
     status !== "approving" &&
-    status !== "posting";
+    status !== "posting" &&
+    !entryTypeError;
 
 
   return (
@@ -86,6 +144,65 @@ export default function Page() {
             <Title level="h1">Publish</Title>
             <Text>{platformCopy.publish.header}</Text>
           </Stack>
+
+          <Stack gap="xs">
+            <Meta>Publishing Mode</Meta>
+            <div className="inline-flex rounded-md border border-rule p-1">
+              <Button
+                type="button"
+                onClick={() => setMode("core")}
+                className={cn(
+                  "px-3 py-1 text-sm text-ink",
+                  mode === "core" &&
+                    "font-medium underline underline-offset-4"
+                )}
+              >
+                Core
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!isNewsAllowed) return;
+                  setMode("news");
+                }}
+                disabled={!isNewsAllowed}
+                className={cn(
+                  "px-3 py-1 text-sm text-ink",
+                  mode === "news" &&
+                    "font-medium underline underline-offset-4"
+                )}
+              >
+                News
+              </Button>
+            </div>
+            {!isNewsAllowed && (
+              <Meta className="text-muted">News publishing is restricted.</Meta>
+            )}
+          </Stack>
+
+          {mode === "news" && (
+            <Stack gap="xs">
+              <Meta>Entry Type</Meta>
+              <select
+                value={entryType}
+                onChange={(event) => {
+                  setEntryType(event.target.value as NewsEntryType | "");
+                  setEntryTypeTouched(true);
+                }}
+                className="w-full rounded-md border border-rule px-3 py-2 text-sm text-ink"
+              >
+                <option value="">Select…</option>
+                <option value="primary">Primary</option>
+                <option value="secondary">Secondary</option>
+                <option value="commentary">Commentary</option>
+              </select>
+              {entryTypeTouched && entryTypeError && (
+                <Meta className="text-muted">
+                  Entry type is required for News.
+                </Meta>
+              )}
+            </Stack>
+          )}
 
           <Stack gap="xs">
             <Title level="h2">Upload</Title>
