@@ -1,6 +1,6 @@
 export const PRICING = {
   baseFeeCents: 1,
-  markupMultiplier: 3, // 200% markup => total = raw * 3
+  markupMultiplier: 9, // 800% markup => total = raw * 9
 };
 
 export function sizeBytesToMb(sizeBytes: number) {

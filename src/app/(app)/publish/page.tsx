@@ -20,6 +20,8 @@ export default function Page() {
   const [metadataBytes, setMetadataBytes] = useState(0);
 
   const {
+    address,
+    isConnected,
     file,
     arTx,
     title,
@@ -64,6 +66,15 @@ export default function Page() {
   }, [title, description]);
 
   const totalBytes = (file?.size ?? 0) + metadataBytes;
+  const canPrepare = Boolean(file) && status !== "uploading";
+  const canPublish =
+    isConnected &&
+    Boolean(address) &&
+    Boolean(file) &&
+    Boolean(arTx) &&
+    Boolean(quote) &&
+    status !== "approving" &&
+    status !== "posting";
 
 
   return (
@@ -131,6 +142,8 @@ export default function Page() {
             <Title level="h2">Actions</Title>
             <ActionsPanel
               status={status}
+              canPrepare={canPrepare}
+              canPublish={canPublish}
               handleUploadToArweave={handleUploadToArweave}
               handleApproveAndPost={handleApproveAndPost}
               setShowPricingInfo={setShowPricingInfo}
@@ -242,7 +255,7 @@ export default function Page() {
             </div>
           )}
 
-          {(txHash || arweaveUrl) && (
+          {txHash && (
             <div className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-700">
               <div className="font-medium text-green-800">Success</div>
               <div className="mt-1 text-green-800">
@@ -280,19 +293,48 @@ export default function Page() {
                   </a>
                 </div>
               )}
-              {txHash && (
-                <div className="mt-1">
-                  <span className="font-medium">Transaction:</span>{" "}
-                  <a
-                    href={`https://amoy.polygonscan.com/tx/${txHash}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    View on Polygonscan
-                  </a>
-                </div>
-              )}
+              <div className="mt-1">
+                <span className="font-medium">Transaction:</span>{" "}
+                <a
+                  href={`https://amoy.polygonscan.com/tx/${txHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  View on Polygonscan
+                </a>
+              </div>
+            </div>
+          )}
+          {!txHash && arweaveUrl && (
+            <div className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              <div className="font-medium text-green-800">File Prepared</div>
+              <MetaBlock>
+                {title ? <MetaRow label="Title">{title}</MetaRow> : null}
+                {mime ? <MetaRow label="MIME">{mime}</MetaRow> : null}
+                {typeof sizeBytes === "number" ? (
+                  <MetaRow label="Size">{sizeBytes} bytes</MetaRow>
+                ) : null}
+              </MetaBlock>
+              <ProofBlock
+                rows={[
+                  {
+                    label: "Arweave",
+                    value: arweaveUrl ?? arTx,
+                  },
+                ]}
+              />
+              <div className="mt-2">
+                <span className="font-medium">Arweave:</span>{" "}
+                <a
+                  href={arweaveUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  View on Arweave
+                </a>
+              </div>
             </div>
           )}
           {error && !(file && error.includes("Missing sizeBytes")) && (

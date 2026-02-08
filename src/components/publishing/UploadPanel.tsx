@@ -29,8 +29,11 @@ export default function UploadPanel({
         Upload + Post (USDC)
       </Title>
       <Text className="text-sm text-gray-600">
-        This MVP expects you to upload to Arweave separately, then paste the
-        Arweave transaction ID here.
+        Select a file to prepare for publishing. We’ll upload it to Arweave and
+        calculate pricing before you publish.
+      </Text>
+      <Text className="text-sm text-gray-600">
+        Uploads support files up to 12 MB.
       </Text>
 
       <div className="space-y-2">

@@ -13,6 +13,8 @@ type UploadState =
   | "done"
   | "error";
 
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12 MB
+
 export default function useUploadForm(options?: { pricingExtraBytes?: number }) {
   const { address, isConnected } = useAccount();
   const [file, setFile] = useState<File | null>(null);
@@ -80,10 +82,11 @@ export default function useUploadForm(options?: { pricingExtraBytes?: number }) 
   useEffect(() => {
     if (!file) return;
     if (sizeBytes <= 0) return;
+    if (quote) return;
     fetchEstimate(sizeBytes).catch((err) =>
       setError(err instanceof Error ? err.message : "Estimate failed.")
     );
-  }, [sizeBytes, file]);
+  }, [sizeBytes, file, quote]);
   const breakdown = useMemo(() => {
     const source = quote ?? estimate;
     if (!source || sizeBytes === 0) return null;
@@ -224,6 +227,11 @@ export default function useUploadForm(options?: { pricingExtraBytes?: number }) 
   }
 
   function handleFileSelected(f: File | null) {
+    if (f && f.size > MAX_UPLOAD_BYTES) {
+      setError("This file exceeds the 12 MB upload limit.");
+      return;
+    }
+    setError(null);
     setFile(f);
     setMime(f?.type ?? "");
     setTitle(f?.name ?? "");
@@ -233,8 +241,9 @@ export default function useUploadForm(options?: { pricingExtraBytes?: number }) 
     setArTx("");
     setQuote(null);
     setEstimate(null);
-    if (f && sizeBytes > 0) {
-      fetchEstimate(sizeBytes).catch((err) =>
+    const nextSizeBytes = (f?.size ?? 0) + extraBytes;
+    if (f && nextSizeBytes > 0) {
+      fetchEstimate(nextSizeBytes).catch((err) =>
         setError(err instanceof Error ? err.message : "Estimate failed.")
       );
     }

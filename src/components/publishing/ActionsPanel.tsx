@@ -4,6 +4,8 @@ import Button from "@/components/ui/Button";
 
 type ActionsPanelProps = {
   status: string;
+  canPrepare?: boolean;
+  canPublish?: boolean;
   handleUploadToArweave: () => void;
   handleApproveAndPost: () => void;
   setShowPricingInfo: (value: boolean) => void;
@@ -12,6 +14,8 @@ type ActionsPanelProps = {
 
 export default function ActionsPanel({
   status,
+  canPrepare,
+  canPublish,
   handleUploadToArweave,
   handleApproveAndPost,
   setShowPricingInfo,
@@ -23,24 +27,26 @@ export default function ActionsPanel({
         <Button
           className="border-0 bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           onClick={handleUploadToArweave}
-          disabled={status === "uploading"}
+          disabled={status === "uploading" || canPrepare === false}
         >
-          {status === "uploading" ? "Uploading..." : "Upload to Arweave"}
+          {status === "uploading" ? "Uploading..." : "Prepare Publish"}
         </Button>
         <Button
           className="border-0 bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           onClick={handleApproveAndPost}
-          disabled={status === "approving" || status === "posting"}
+          disabled={
+            status === "approving" || status === "posting" || canPublish === false
+          }
         >
           {status === "approving"
             ? "Approving USDC..."
             : status === "posting"
             ? "Posting..."
-            : "Approve + Post"}
+            : "Pay & Publish"}
         </Button>
       </div>
       <div className="text-xs text-gray-500">
-        Flow: upload → price locks → approve & post
+        Flow: prepare → pay & publish
         <Button
           className="ml-2 inline-flex items-center border-0 bg-transparent p-0 text-xs font-medium text-indigo-600 underline"
           onClick={() => setShowPricingInfo(true)}
