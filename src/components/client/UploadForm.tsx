@@ -14,6 +14,7 @@ import { platformCopy } from "@/lib/copy/platform";
 import MetaBlock from "@/components/docs/MetaBlock";
 import MetaRow from "@/components/docs/MetaRow";
 import ProofBlock from "@/components/docs/ProofBlock";
+import { getExplorerTxUrl } from "@/lib/chain";
 
 export default function UploadForm() {
   const {
@@ -245,7 +246,7 @@ export default function UploadForm() {
             <div className="mt-1">
               <span className="font-medium">Transaction:</span>{" "}
               <a
-                href={`https://amoy.polygonscan.com/tx/${txHash}`}
+                href={getExplorerTxUrl(txHash)}
                 target="_blank"
                 rel="noreferrer"
                 className="underline"

@@ -15,6 +15,7 @@ import MetaBlock from "@/components/docs/MetaBlock";
 import MetaRow from "@/components/docs/MetaRow";
 import ProofBlock from "@/components/docs/ProofBlock";
 import { platformCopy } from "@/lib/copy/platform";
+import { getExplorerTxUrl } from "@/lib/chain";
 
 export default function Page() {
   const [metadataBytes, setMetadataBytes] = useState(0);
@@ -296,7 +297,7 @@ export default function Page() {
               <div className="mt-1">
                 <span className="font-medium">Transaction:</span>{" "}
                 <a
-                  href={`https://amoy.polygonscan.com/tx/${txHash}`}
+                  href={getExplorerTxUrl(txHash)}
                   target="_blank"
                   rel="noreferrer"
                   className="underline"
