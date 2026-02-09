@@ -7,6 +7,17 @@ interface IERC20 {
 }
 
 contract DocPayGo {
+    enum ReservationStatus { None, Reserved, Finalized, Refunded, Expired }
+
+    struct Reservation {
+        address payer;
+        uint64 sizeBytes;
+        uint32 priceCents;
+        uint40 createdAt;
+        uint40 expiresAt;
+        ReservationStatus status;
+    }
+
     struct Doc {
         address author;
         string arweaveTx;
@@ -17,6 +28,7 @@ contract DocPayGo {
     }
 
     mapping(bytes32 => Doc) public docs;
+    mapping(bytes32 => Reservation) public reservations;
 
     event DocumentPosted(
         address indexed author,
@@ -24,6 +36,27 @@ contract DocPayGo {
         string arweaveTx,
         uint256 sizeBytes,
         uint256 timestamp
+    );
+    event ReservationCreated(
+        bytes32 indexed reservationId,
+        address indexed payer,
+        uint64 sizeBytes,
+        uint32 priceCents,
+        uint40 expiresAt
+    );
+    event ReservationFinalized(
+        bytes32 indexed reservationId,
+        bytes32 indexed docId,
+        address indexed payer,
+        string arTx
+    );
+    event ReservationRefunded(
+        bytes32 indexed reservationId,
+        address indexed payer
+    );
+    event ReservationExpired(
+        bytes32 indexed reservationId,
+        address indexed payer
     );
     event SignerUpdated(address indexed newSigner);
 
@@ -87,6 +120,68 @@ contract DocPayGo {
 
         docs[id] = Doc(msg.sender, arTx, title, mime, sizeBytes, block.timestamp);
         emit DocumentPosted(msg.sender, id, arTx, sizeBytes, block.timestamp);
+    }
+
+    function reservePost(
+        uint64 sizeBytes,
+        uint32 priceCents,
+        uint40 expiresAt,
+        uint256 nonce,
+        bytes calldata signature
+    ) external nonReentrant returns (bytes32 reservationId) {
+        require(sizeBytes > 0, "sizeBytes=0");
+        require(priceCents > 0, "priceCents=0");
+        require(expiresAt > block.timestamp, "quote expired");
+
+        reservationId = keccak256(
+            abi.encodePacked(
+                address(this),
+                msg.sender,
+                sizeBytes,
+                priceCents,
+                expiresAt,
+                nonce
+            )
+        );
+        require(
+            reservations[reservationId].status == ReservationStatus.None,
+            "already reserved"
+        );
+
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                address(this),
+                msg.sender,
+                sizeBytes,
+                priceCents,
+                expiresAt,
+                nonce
+            )
+        );
+        address recovered = _recoverSigner(digest, signature);
+        require(recovered == signer, "bad signature");
+
+        uint256 usdcToPull = priceCents * CENT_TO_USDC;
+        require(token.transferFrom(msg.sender, address(this), usdcToPull), "payment failed");
+
+        reservations[reservationId] = Reservation({
+            payer: msg.sender,
+            sizeBytes: sizeBytes,
+            priceCents: priceCents,
+            createdAt: uint40(block.timestamp),
+            expiresAt: expiresAt,
+            status: ReservationStatus.Reserved
+        });
+
+        emit ReservationCreated(
+            reservationId,
+            msg.sender,
+            sizeBytes,
+            priceCents,
+            expiresAt
+        );
+
+        return reservationId;
     }
 
     function withdraw(address to, uint256 amount) external onlyOwner nonReentrant {
