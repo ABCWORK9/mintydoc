@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { keccak256, toBytes } from "viem";
 import { docPayGoAbi } from "@/lib/contractAbi";
 import { erc20Abi } from "@/lib/erc20Abi";
 import { centsToUsdcUnits, getPricingBreakdown } from "@/lib/pricing";
@@ -13,6 +14,27 @@ type UploadState =
   | "posting"
   | "done"
   | "error";
+
+type PostLifecycleStatus = "paid" | "storing" | "finalized" | "expired";
+
+const reservationReadAbi = [
+  {
+    inputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+    name: "reservations",
+    outputs: [
+      { internalType: "address", name: "payer", type: "address" },
+      { internalType: "uint64", name: "sizeBytes", type: "uint64" },
+      { internalType: "uint32", name: "priceCents", type: "uint32" },
+      { internalType: "uint40", name: "createdAt", type: "uint40" },
+      { internalType: "uint40", name: "expiresAt", type: "uint40" },
+      { internalType: "uint8", name: "status", type: "uint8" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+const RESERVED_STATUS = 1;
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12 MB
 
@@ -51,6 +73,9 @@ export default function useUploadForm(options?: {
   const [category, setCategory] = useState<MintyCategory>("research");
   const [otherCategory, setOtherCategory] = useState("");
   const [keywords, setKeywords] = useState("");
+  const [reservationId, setReservationId] = useState<`0x${string}` | null>(
+    null
+  );
 
   function formatError(message: string) {
     const msg = message.toLowerCase();
@@ -87,6 +112,78 @@ export default function useUploadForm(options?: {
   const priceCents = quote?.priceCents ?? estimate?.priceCents ?? 0;
   const usdcUnits = useMemo(() => centsToUsdcUnits(priceCents), [priceCents]);
   const priceUsd = useMemo(() => (priceCents / 100).toFixed(2), [priceCents]);
+
+  const reservationRead = useReadContract({
+    address: DOC_PAY_GO_ADDRESS as `0x${string}`,
+    abi: reservationReadAbi,
+    functionName: "reservations",
+    args: reservationId ? [reservationId] : undefined,
+    query: {
+      enabled: Boolean(DOC_PAY_GO_ADDRESS && reservationId),
+    },
+  });
+
+  const docId = arTx ? keccak256(toBytes(arTx)) : null;
+  const docRead = useReadContract({
+    address: DOC_PAY_GO_ADDRESS as `0x${string}`,
+    abi: docPayGoAbi,
+    functionName: "docs",
+    args: docId ? [docId] : undefined,
+    query: {
+      enabled: Boolean(DOC_PAY_GO_ADDRESS && docId),
+    },
+  });
+
+  const reservationData = reservationRead.data as
+    | { status: bigint | number; expiresAt: bigint | number }
+    | readonly [string, bigint, bigint, bigint, bigint, bigint]
+    | undefined;
+  const reservationStatus = reservationData
+    ? Number(
+        "status" in reservationData
+          ? reservationData.status
+          : reservationData[5]
+      )
+    : 0;
+  const reservationExpiresAt = reservationData
+    ? Number(
+        "expiresAt" in reservationData
+          ? reservationData.expiresAt
+          : reservationData[4]
+      )
+    : 0;
+
+  const docData = docRead.data as
+    | { author: string }
+    | readonly [string]
+    | undefined;
+  const docAuthor = docData
+    ? "author" in docData
+      ? docData.author
+      : docData[0]
+    : "";
+  const docExists =
+    Boolean(docAuthor) &&
+    docAuthor !== "0x0000000000000000000000000000000000000000";
+
+  const postStatus = useMemo<PostLifecycleStatus>(() => {
+    if (docExists) return "finalized";
+    if (
+      reservationStatus === RESERVED_STATUS &&
+      reservationExpiresAt &&
+      Math.floor(Date.now() / 1000) <= reservationExpiresAt
+    ) {
+      return "storing";
+    }
+    if (
+      reservationStatus === RESERVED_STATUS &&
+      reservationExpiresAt &&
+      Math.floor(Date.now() / 1000) > reservationExpiresAt
+    ) {
+      return "expired";
+    }
+    return "paid";
+  }, [docExists, reservationStatus, reservationExpiresAt]);
 
   useEffect(() => {
     if (!file) return;
@@ -315,6 +412,9 @@ export default function useUploadForm(options?: {
     setOtherCategory,
     keywords,
     setKeywords,
+    reservationId,
+    setReservationId,
+    postStatus,
     handleUploadToArweave,
     handleApproveAndPost,
     handleFileSelected,
