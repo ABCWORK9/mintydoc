@@ -203,15 +203,23 @@ async function processReservation(reservationId: string) {
   }
   if (!arTx) return;
 
-  await walletClient.writeContract({
-    address: contractAddress as `0x${string}`,
-    abi: docPayGoWorkerAbi,
-    functionName: "finalizePost",
-    args: [reservationId as `0x${string}`, arTx, file.title, file.mime],
-    account,
-  });
+  try {
+    await walletClient.writeContract({
+      address: contractAddress as `0x${string}`,
+      abi: docPayGoWorkerAbi,
+      functionName: "finalizePost",
+      args: [reservationId as `0x${string}`, arTx, file.title, file.mime],
+      account,
+    });
 
-  console.log("reservation finalized", { reservationId, arTx });
+    console.log("reservation finalized", { reservationId, arTx });
+  } catch (err) {
+    console.error("finalizePost failed", {
+      reservationId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    queue.enqueue(reservationId);
+  }
 }
 
 export function startReservationAutoFinalizeWorker() {
