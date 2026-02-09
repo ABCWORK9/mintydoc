@@ -194,7 +194,11 @@ contract DocPayGo {
 
         Reservation storage reservation = reservations[reservationId];
         require(reservation.status == ReservationStatus.Reserved, "not reserved");
-        require(reservation.payer == msg.sender, "not payer");
+        require(
+            msg.sender == reservation.payer || msg.sender == owner,
+            "not authorized"
+        );
+        require(block.timestamp <= reservation.expiresAt, "reservation expired");
 
         bytes32 id = keccak256(abi.encodePacked(arTx));
         require(docs[id].author == address(0), "already posted");
