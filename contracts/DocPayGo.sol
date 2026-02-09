@@ -184,6 +184,35 @@ contract DocPayGo {
         return reservationId;
     }
 
+    function finalizePost(
+        bytes32 reservationId,
+        string calldata arTx,
+        string calldata title,
+        string calldata mime
+    ) external nonReentrant {
+        require(bytes(arTx).length > 0, "arTx empty");
+
+        Reservation storage reservation = reservations[reservationId];
+        require(reservation.status == ReservationStatus.Reserved, "not reserved");
+        require(reservation.payer == msg.sender, "not payer");
+
+        bytes32 id = keccak256(abi.encodePacked(arTx));
+        require(docs[id].author == address(0), "already posted");
+
+        reservation.status = ReservationStatus.Finalized;
+
+        docs[id] = Doc(
+            reservation.payer,
+            arTx,
+            title,
+            mime,
+            reservation.sizeBytes,
+            block.timestamp
+        );
+        emit DocumentPosted(reservation.payer, id, arTx, reservation.sizeBytes, block.timestamp);
+        emit ReservationFinalized(reservationId, id, reservation.payer, arTx);
+    }
+
     function withdraw(address to, uint256 amount) external onlyOwner nonReentrant {
         require(to != address(0), "bad to");
         require(token.transfer(to, amount), "withdraw failed");
