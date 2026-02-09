@@ -222,6 +222,20 @@ contract DocPayGo {
         require(token.transfer(to, amount), "withdraw failed");
     }
 
+    function claimRefund(bytes32 reservationId) external nonReentrant {
+        Reservation storage reservation = reservations[reservationId];
+        require(reservation.status == ReservationStatus.Reserved, "not reserved");
+        require(block.timestamp > reservation.expiresAt, "not expired");
+        require(reservation.payer == msg.sender, "not payer");
+
+        reservation.status = ReservationStatus.Refunded;
+
+        uint256 refundAmount = reservation.priceCents * CENT_TO_USDC;
+        require(token.transfer(reservation.payer, refundAmount), "refund failed");
+
+        emit ReservationRefunded(reservationId, reservation.payer);
+    }
+
     function _recoverSigner(bytes32 digest, bytes calldata sig) internal pure returns (address) {
         if (sig.length != 65) return address(0);
         bytes32 r;
