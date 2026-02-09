@@ -16,6 +16,7 @@ import MetaRow from "@/components/docs/MetaRow";
 import ProofBlock from "@/components/docs/ProofBlock";
 import { platformCopy } from "@/lib/copy/platform";
 import { getExplorerTxUrl } from "@/lib/chain";
+import { MINTY_CATEGORIES } from "@/lib/mintyTaxonomy";
 import Button from "@/components/ui/Button";
 import { cn } from "@/lib/utils/cn";
 
@@ -63,6 +64,12 @@ export default function Page() {
     setShowPricingInfo,
     setShowSafetyInfo,
     setShowFileTypes,
+    category,
+    setCategory,
+    otherCategory,
+    setOtherCategory,
+    keywords,
+    setKeywords,
     handleUploadToArweave,
     handleApproveAndPost,
     handleFileSelected,
@@ -238,6 +245,48 @@ export default function Page() {
                 <Text>Reached maximum description length.</Text>
               )}
             </Stack>
+            <div className="mt-4 space-y-3">
+              <div>
+                <Meta>Category</Meta>
+                <select
+                  value={category}
+                  onChange={(e) =>
+                    setCategory(e.target.value as typeof category)
+                  }
+                  className="w-full rounded-sm border border-rule px-3 py-2 text-sm text-ink"
+                >
+                  {MINTY_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {category === "other" && (
+                <div>
+                  <Meta>Other category</Meta>
+                  <input
+                    value={otherCategory}
+                    onChange={(e) => setOtherCategory(e.target.value)}
+                    placeholder="e.g. Insurance, Tax, Medical..."
+                    className="w-full rounded-sm border border-rule px-3 py-2 text-sm text-ink"
+                    maxLength={64}
+                  />
+                </div>
+              )}
+
+              <div>
+                <Meta>Keywords (comma-separated)</Meta>
+                <input
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder="e.g. zoning, permit, CA, inspection"
+                  className="w-full rounded-sm border border-rule px-3 py-2 text-sm text-ink"
+                  maxLength={256}
+                />
+              </div>
+            </div>
             <ReviewPanel
               arTx={arTx}
               title={title}

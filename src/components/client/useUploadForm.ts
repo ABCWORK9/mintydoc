@@ -4,6 +4,7 @@ import { docPayGoAbi } from "@/lib/contractAbi";
 import { erc20Abi } from "@/lib/erc20Abi";
 import { centsToUsdcUnits, getPricingBreakdown } from "@/lib/pricing";
 import { DOC_PAY_GO_ADDRESS, USDC_ADDRESS } from "@/lib/contracts";
+import type { MintyCategory } from "@/lib/mintyTaxonomy";
 
 type UploadState =
   | "idle"
@@ -47,6 +48,9 @@ export default function useUploadForm(options?: {
   const [showSafetyInfo, setShowSafetyInfo] = useState(false);
   const [devMode, setDevMode] = useState<boolean | null>(null);
   const [showFileTypes, setShowFileTypes] = useState(false);
+  const [category, setCategory] = useState<MintyCategory>("research");
+  const [otherCategory, setOtherCategory] = useState("");
+  const [keywords, setKeywords] = useState("");
 
   function formatError(message: string) {
     const msg = message.toLowerCase();
@@ -112,10 +116,14 @@ export default function useUploadForm(options?: {
       setUploadProgress(0);
       const form = new FormData();
       form.append("file", file);
+      const finalCategory =
+        options?.publishCategory === "news" ? "news" : category;
+      form.set("category", finalCategory);
+      form.set("otherCategory", otherCategory);
+      form.set("keywords", keywords);
       if (options?.publishCategory === "news") {
-        form.append("category", "news");
         if (options.publishEntryType) {
-          form.append("entryType", options.publishEntryType);
+          form.set("entryType", options.publishEntryType);
         }
       }
       const res = await fetch("/api/arweave/upload", {
@@ -301,6 +309,12 @@ export default function useUploadForm(options?: {
     setDevMode,
     setShowFileTypes,
     setEstimate,
+    category,
+    setCategory,
+    otherCategory,
+    setOtherCategory,
+    keywords,
+    setKeywords,
     handleUploadToArweave,
     handleApproveAndPost,
     handleFileSelected,

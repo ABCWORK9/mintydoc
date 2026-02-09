@@ -103,7 +103,9 @@ export async function POST(req: Request) {
   try {
     const form = await req.formData();
     const file = form.get("file");
-    const category = form.get("category");
+    const category = String(form.get("category") ?? "").trim();
+    const otherCategory = String(form.get("otherCategory") ?? "").trim();
+    const keywordsRaw = String(form.get("keywords") ?? "").trim();
     const entryType = form.get("entryType");
 
     if (!(file instanceof File)) {
@@ -144,8 +146,21 @@ export async function POST(req: Request) {
     if (file.type) {
       tx.addTag("Content-Type", file.type);
     }
-    if (category === "news") {
-      tx.addTag("Minty-Category", "news");
+    if (category) {
+      tx.addTag("Minty-Category", category);
+      if (category === "other" && otherCategory) {
+        tx.addTag("Minty-Category-Other", otherCategory.slice(0, 64));
+      }
+    }
+    if (keywordsRaw) {
+      const keywords = keywordsRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 12);
+      if (keywords.length) {
+        tx.addTag("Minty-Keywords", keywords.join(","));
+      }
     }
     if (
       entryType === "primary" ||
