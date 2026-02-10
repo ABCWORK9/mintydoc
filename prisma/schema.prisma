@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PublishJobState {
+  pending
+  reserved
+  storing
+  finalized
+  expired
+  refunded
+  failed
+}
+
+enum UploadStatus {
+  pending
+  uploading
+  uploaded
+  failed
+}
+
+model PublishJob {
+  id                 String          @id @default(uuid()) @db.Uuid
+  wallet             String
+  ip                 String?
+  sha256             String
+  sizeBytes          Int             @map("size_bytes")
+  objectKey          String          @map("object_key")
+  uploadId           String?         @map("upload_id")
+  uploadStatus       UploadStatus    @map("upload_status")
+  reservationId      String?         @map("reservation_id")
+  reserveTxHash      String?         @map("reserve_tx_hash")
+  reserveConfirmedAt DateTime?       @map("reserve_confirmed_at")
+  expiresAt          DateTime?       @map("expires_at")
+  arweaveTxId        String?         @map("arweave_tx_id")
+  finalizeTxHash     String?         @map("finalize_tx_hash")
+  finalizedAt        DateTime?       @map("finalized_at")
+  state              PublishJobState
+  attempts           Int             @default(0)
+  lastError          String?         @map("last_error")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  @@index([wallet])
+  @@index([sha256])
+  @@index([state])
+  @@index([reservationId])
+  @@map("publish_jobs")
+}
