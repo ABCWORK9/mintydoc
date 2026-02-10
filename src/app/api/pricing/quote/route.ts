@@ -31,11 +31,12 @@ const IP_MAX = 20;
 function getClientIp(req: Request) {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
-    return forwarded.split(",")[0]?.trim().toLowerCase() || "unknown";
+    const value = forwarded.split(",")[0]?.trim().toLowerCase();
+    return value || null;
   }
   const realIp = req.headers.get("x-real-ip");
   if (realIp) return realIp.trim().toLowerCase();
-  return "unknown";
+  return null;
 }
 
 async function getArweavePriceWinston(sizeBytes: number) {
@@ -87,22 +88,26 @@ export async function POST(req: Request) {
   try {
     const now = Date.now();
     const clientIp = getClientIp(req);
-    const ipState = ipLimits.get(clientIp) ?? { windowStart: now, count: 0 };
-    if (now - ipState.windowStart >= IP_WINDOW_MS) {
-      ipState.windowStart = now;
-      ipState.count = 0;
+    if (!clientIp) {
+      console.warn("ip missing; skipping ip rate limit");
+    } else {
+      const ipState = ipLimits.get(clientIp) ?? { windowStart: now, count: 0 };
+      if (now - ipState.windowStart >= IP_WINDOW_MS) {
+        ipState.windowStart = now;
+        ipState.count = 0;
+      }
+      if (ipState.count >= IP_MAX) {
+        return NextResponse.json(
+          {
+            error: "ip_rate_limit",
+            message: "Too many requests. Please try again later.",
+          },
+          { status: 429 }
+        );
+      }
+      ipState.count += 1;
+      ipLimits.set(clientIp, ipState);
     }
-    if (ipState.count >= IP_MAX) {
-      return NextResponse.json(
-        {
-          error: "ip_rate_limit",
-          message: "Too many requests. Please try again later.",
-        },
-        { status: 429 }
-      );
-    }
-    ipState.count += 1;
-    ipLimits.set(clientIp, ipState);
 
     const body = (await req.json()) as QuoteBody;
     if (!body?.address || !body?.arTx || !body?.sizeBytes) {

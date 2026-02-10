@@ -66,11 +66,12 @@ const BLOCKED_EXT = new Set([
 function getClientIp(req: Request) {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
-    return forwarded.split(",")[0]?.trim().toLowerCase() || "unknown";
+    const value = forwarded.split(",")[0]?.trim().toLowerCase();
+    return value || null;
   }
   const realIp = req.headers.get("x-real-ip");
   if (realIp) return realIp.trim().toLowerCase();
-  return "unknown";
+  return null;
 }
 
 function toHex(buffer: ArrayBuffer) {
@@ -136,25 +137,26 @@ export async function POST(req: Request) {
   try {
     const now = Date.now();
     const clientIp = getClientIp(req);
-    if (clientIp === "unknown") {
-      console.warn("ip unknown; ip rate limiting may be inaccurate");
+    if (!clientIp) {
+      console.warn("ip missing; skipping ip rate limit");
+    } else {
+      const ipState = ipLimits.get(clientIp) ?? { windowStart: now, count: 0 };
+      if (now - ipState.windowStart >= IP_WINDOW_MS) {
+        ipState.windowStart = now;
+        ipState.count = 0;
+      }
+      if (ipState.count >= IP_MAX) {
+        return NextResponse.json(
+          {
+            error: "ip_rate_limit",
+            message: "Too many requests. Please try again later.",
+          },
+          { status: 429 }
+        );
+      }
+      ipState.count += 1;
+      ipLimits.set(clientIp, ipState);
     }
-    const ipState = ipLimits.get(clientIp) ?? { windowStart: now, count: 0 };
-    if (now - ipState.windowStart >= IP_WINDOW_MS) {
-      ipState.windowStart = now;
-      ipState.count = 0;
-    }
-    if (ipState.count >= IP_MAX) {
-      return NextResponse.json(
-        {
-          error: "ip_rate_limit",
-          message: "Too many requests. Please try again later.",
-        },
-        { status: 429 }
-      );
-    }
-    ipState.count += 1;
-    ipLimits.set(clientIp, ipState);
 
     for (const [hash, entry] of fileHashes.entries()) {
       if (now - entry.lastSeen > DUPLICATE_WINDOW_MS) {
