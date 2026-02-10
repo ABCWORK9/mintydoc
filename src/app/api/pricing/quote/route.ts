@@ -10,6 +10,11 @@ type QuoteBody = {
   clientRequestId?: string;
 };
 
+type IpLimit = {
+  windowStart: number;
+  count: number;
+};
+
 type WalletLimit = {
   windowStart: number;
   count: number;
@@ -19,6 +24,19 @@ type WalletLimit = {
 
 const walletLimits = new Map<string, WalletLimit>();
 const recentRequests = new Map<string, Map<string, number>>();
+const ipLimits = new Map<string, IpLimit>();
+const IP_WINDOW_MS = 10 * 60 * 1000;
+const IP_MAX = 20;
+
+function getClientIp(req: Request) {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0]?.trim().toLowerCase() || "unknown";
+  }
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim().toLowerCase();
+  return "unknown";
+}
 
 async function getArweavePriceWinston(sizeBytes: number) {
   const base = process.env.ARWEAVE_PRICE_URL ?? "https://arweave.net/price";
@@ -67,12 +85,30 @@ function toCents(usd: number) {
 
 export async function POST(req: Request) {
   try {
+    const now = Date.now();
+    const clientIp = getClientIp(req);
+    const ipState = ipLimits.get(clientIp) ?? { windowStart: now, count: 0 };
+    if (now - ipState.windowStart >= IP_WINDOW_MS) {
+      ipState.windowStart = now;
+      ipState.count = 0;
+    }
+    if (ipState.count >= IP_MAX) {
+      return NextResponse.json(
+        {
+          error: "ip_rate_limit",
+          message: "Too many requests. Please try again later.",
+        },
+        { status: 429 }
+      );
+    }
+    ipState.count += 1;
+    ipLimits.set(clientIp, ipState);
+
     const body = (await req.json()) as QuoteBody;
     if (!body?.address || !body?.arTx || !body?.sizeBytes) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    const now = Date.now();
     const walletKey = body.address.toLowerCase();
     const clientRequestId = body.clientRequestId?.trim();
     const requestCache =

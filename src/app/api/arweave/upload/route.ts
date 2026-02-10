@@ -11,6 +11,23 @@ let cachedWallet: JWKInterface | null = null;
 let devFundsMinted = false;
 const execFileAsync = promisify(execFile);
 
+type IpLimit = {
+  windowStart: number;
+  count: number;
+};
+
+type FileHashEntry = {
+  firstSeen: number;
+  lastSeen: number;
+  count: number;
+};
+
+const ipLimits = new Map<string, IpLimit>();
+const fileHashes = new Map<string, FileHashEntry>();
+const IP_WINDOW_MS = 10 * 60 * 1000;
+const IP_MAX = 10;
+const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 const ALLOWED_MIME = new Set([
   "application/pdf",
   "text/plain",
@@ -45,6 +62,22 @@ const BLOCKED_EXT = new Set([
   ".com",
   ".scr",
 ]);
+
+function getClientIp(req: Request) {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0]?.trim().toLowerCase() || "unknown";
+  }
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim().toLowerCase();
+  return "unknown";
+}
+
+function toHex(buffer: ArrayBuffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 async function scanWithClamAV(filePath: string) {
   const enabled = process.env.CLAMAV_ENABLED === "true";
@@ -101,6 +134,25 @@ async function ensureDevFunds(arweave: Arweave, wallet: JWKInterface) {
 
 export async function POST(req: Request) {
   try {
+    const now = Date.now();
+    const clientIp = getClientIp(req);
+    const ipState = ipLimits.get(clientIp) ?? { windowStart: now, count: 0 };
+    if (now - ipState.windowStart >= IP_WINDOW_MS) {
+      ipState.windowStart = now;
+      ipState.count = 0;
+    }
+    if (ipState.count >= IP_MAX) {
+      return NextResponse.json(
+        {
+          error: "ip_rate_limit",
+          message: "Too many requests. Please try again later.",
+        },
+        { status: 429 }
+      );
+    }
+    ipState.count += 1;
+    ipLimits.set(clientIp, ipState);
+
     const form = await req.formData();
     const file = form.get("file");
     const category = String(form.get("category") ?? "").trim();
@@ -114,6 +166,24 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    const fileBuffer = await file.arrayBuffer();
+    const hash = toHex(await crypto.subtle.digest("SHA-256", fileBuffer));
+    const hashEntry = fileHashes.get(hash);
+    if (hashEntry && now - hashEntry.lastSeen < DUPLICATE_WINDOW_MS) {
+      return NextResponse.json(
+        {
+          error: "duplicate_file",
+          message:
+            "This file was already uploaded recently. Please upload a different file.",
+        },
+        { status: 409 }
+      );
+    }
+    fileHashes.set(hash, {
+      firstSeen: hashEntry?.firstSeen ?? now,
+      lastSeen: now,
+      count: (hashEntry?.count ?? 0) + 1,
+    });
     const ext = path.extname(file.name || "").toLowerCase();
     if (BLOCKED_EXT.has(ext)) {
       return NextResponse.json(
@@ -132,7 +202,7 @@ export async function POST(req: Request) {
     const wallet = await getWallet(arweave);
     await ensureDevFunds(arweave, wallet);
 
-    const bytes = Buffer.from(await file.arrayBuffer());
+    const bytes = Buffer.from(fileBuffer);
     const tmpPath = path.join("/tmp", `mintydoc-${randomUUID()}`);
     await writeFile(tmpPath, bytes);
     console.log("Arweave upload: scanning file", { name: file.name, size: bytes.length });
