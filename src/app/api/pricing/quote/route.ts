@@ -7,7 +7,18 @@ type QuoteBody = {
   address: string;
   arTx: string;
   sizeBytes: number;
+  clientRequestId?: string;
 };
+
+type WalletLimit = {
+  windowStart: number;
+  count: number;
+  activeReservationId?: string;
+  activeExpiresAt?: number;
+};
+
+const walletLimits = new Map<string, WalletLimit>();
+const recentRequests = new Map<string, Map<string, number>>();
 
 async function getArweavePriceWinston(sizeBytes: number) {
   const base = process.env.ARWEAVE_PRICE_URL ?? "https://arweave.net/price";
@@ -61,6 +72,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    const now = Date.now();
+    const walletKey = body.address.toLowerCase();
+    const clientRequestId = body.clientRequestId?.trim();
+    const requestCache =
+      clientRequestId ? recentRequests.get(walletKey) ?? new Map() : null;
+    const lastSeen = requestCache?.get(clientRequestId ?? "") ?? 0;
+    const isDuplicateRequest =
+      Boolean(clientRequestId) && now - lastSeen < 5 * 60 * 1000;
+    if (requestCache && clientRequestId) {
+      requestCache.set(clientRequestId, now);
+      recentRequests.set(walletKey, requestCache);
+    }
+
+    const limits = walletLimits.get(walletKey) ?? {
+      windowStart: now,
+      count: 0,
+    };
+    const activeExpiresAt = limits.activeExpiresAt ?? 0;
+    if (!isDuplicateRequest && limits.activeReservationId && now / 1000 < activeExpiresAt) {
+      return NextResponse.json(
+        {
+          error: "active_reservation_limit",
+          message:
+            "You already have an active reservation in progress. Please wait for it to finalize or expire.",
+        },
+        { status: 429 }
+      );
+    }
+
+    if (!isDuplicateRequest) {
+      if (now - limits.windowStart >= 3600 * 1000) {
+        limits.windowStart = now;
+        limits.count = 0;
+      }
+      if (limits.count >= 3) {
+        return NextResponse.json(
+          {
+            error: "hourly_reservation_limit",
+            message: "Rate limit reached. Please try again later.",
+          },
+          { status: 429 }
+        );
+      }
+      limits.count += 1;
+    }
+
     const winston = await getArweavePriceWinston(body.sizeBytes);
     const arUsd = await getArUsd();
     const arCost = Number(winston) / 1e12;
@@ -105,6 +162,10 @@ export async function POST(req: Request) {
     const signature = await account.signMessage({
       message: { raw: digest },
     });
+
+    limits.activeReservationId = limits.activeReservationId ?? "pending";
+    limits.activeExpiresAt = expiresAt;
+    walletLimits.set(walletKey, limits);
 
     return NextResponse.json({
       priceCents: totalCents,
