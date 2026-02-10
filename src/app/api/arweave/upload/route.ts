@@ -136,6 +136,9 @@ export async function POST(req: Request) {
   try {
     const now = Date.now();
     const clientIp = getClientIp(req);
+    if (clientIp === "unknown") {
+      console.warn("ip unknown; ip rate limiting may be inaccurate");
+    }
     const ipState = ipLimits.get(clientIp) ?? { windowStart: now, count: 0 };
     if (now - ipState.windowStart >= IP_WINDOW_MS) {
       ipState.windowStart = now;
@@ -152,6 +155,12 @@ export async function POST(req: Request) {
     }
     ipState.count += 1;
     ipLimits.set(clientIp, ipState);
+
+    for (const [hash, entry] of fileHashes.entries()) {
+      if (now - entry.lastSeen > DUPLICATE_WINDOW_MS) {
+        fileHashes.delete(hash);
+      }
+    }
 
     const form = await req.formData();
     const file = form.get("file");
