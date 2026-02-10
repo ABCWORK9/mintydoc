@@ -8,9 +8,9 @@ datasource db {
 }
 
 enum PublishJobState {
-  pending
-  reserved
-  storing
+  awaiting_upload
+  awaiting_payment
+  processing
   finalized
   expired
   refunded
@@ -18,10 +18,12 @@ enum PublishJobState {
 }
 
 enum UploadStatus {
-  pending
+  initiated
   uploading
   uploaded
   failed
+  aborted
+  expired
 }
 
 model PublishJob {
@@ -29,11 +31,11 @@ model PublishJob {
   wallet             String
   ip                 String?
   sha256             String
-  sizeBytes          Int             @map("size_bytes")
-  objectKey          String          @map("object_key")
+  sizeBytes          BigInt          @map("size_bytes") @db.BigInt
+  objectKey          String?         @map("object_key")
   uploadId           String?         @map("upload_id")
   uploadStatus       UploadStatus    @map("upload_status")
-  reservationId      String?         @map("reservation_id")
+  reservationId      BigInt?         @map("reservation_id") @db.BigInt
   reserveTxHash      String?         @map("reserve_tx_hash")
   reserveConfirmedAt DateTime?       @map("reserve_confirmed_at")
   expiresAt          DateTime?       @map("expires_at")
@@ -49,6 +51,6 @@ model PublishJob {
   @@index([wallet])
   @@index([sha256])
   @@index([state])
-  @@index([reservationId])
+  @@unique([reservationId])
   @@map("publish_jobs")
 }
