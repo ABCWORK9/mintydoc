@@ -46,13 +46,10 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({
-      chainId,
-      contractAddress,
-      functionName: "reservePost",
-      args: [job.sizeBytes.toString(), "0", "0", "0", "0x"],
-      value: "0",
-    });
+    return NextResponse.json(
+      { error: "reserve_args_unavailable" },
+      { status: 409 }
+    );
   } catch {
     return NextResponse.json({ error: "intent_failed" }, { status: 500 });
   }
