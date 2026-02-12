@@ -7,6 +7,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model PublishJob {
+  id                     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet                 String
+  ip                     String?
+  sha256                 String
+  sizeBytes              BigInt          @map("size_bytes")
+  objectKey              String?         @map("object_key")
+  uploadId               String?         @map("upload_id")
+  uploadStatus           UploadStatus    @map("upload_status")
+  reservationId          BigInt?         @unique @map("reservation_id")
+  reserveTxHash          String?         @map("reserve_tx_hash")
+  reserveConfirmedAt     DateTime?       @map("reserve_confirmed_at") @db.Timestamptz(6)
+  expiresAt              DateTime?       @map("expires_at") @db.Timestamptz(6)
+  arweaveTxId            String?         @map("arweave_tx_id")
+  finalizeTxHash         String?         @map("finalize_tx_hash")
+  finalizedAt            DateTime?       @map("finalized_at") @db.Timestamptz(6)
+  state                  PublishJobState
+  attempts               Int             @default(0)
+  lastError              String?         @map("last_error")
+  createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  reservePayer           String?         @map("reserve_payer")
+  reserveNonce           String?         @map("reserve_nonce") @db.VarChar(66)
+  reserveExpiresAt       BigInt?         @map("reserve_expires_at")
+  reservePriceCents      Int?            @map("reserve_price_cents")
+  reserveSignature       String?         @map("reserve_signature")
+  reserveReservationId   String?         @map("reserve_reservation_id") @db.VarChar(66)
+  reserveIntentCreatedAt DateTime?       @map("reserve_intent_created_at") @db.Timestamptz(6)
+
+  @@index([wallet])
+  @@index([sha256])
+  @@index([state])
+  @@index([reservePayer])
+  @@index([reserveReservationId])
+  @@index([reservePayer, reserveExpiresAt])
+  @@map("publish_jobs")
+}
+
 enum PublishJobState {
   awaiting_upload
   awaiting_payment
@@ -24,33 +62,4 @@ enum UploadStatus {
   failed
   aborted
   expired
-}
-
-model PublishJob {
-  id                 String          @id @default(uuid()) @db.Uuid
-  wallet             String
-  ip                 String?
-  sha256             String
-  sizeBytes          BigInt          @map("size_bytes") @db.BigInt
-  objectKey          String?         @map("object_key")
-  uploadId           String?         @map("upload_id")
-  uploadStatus       UploadStatus    @map("upload_status")
-  reservationId      BigInt?         @map("reservation_id") @db.BigInt
-  reserveTxHash      String?         @map("reserve_tx_hash")
-  reserveConfirmedAt DateTime?       @map("reserve_confirmed_at")
-  expiresAt          DateTime?       @map("expires_at")
-  arweaveTxId        String?         @map("arweave_tx_id")
-  finalizeTxHash     String?         @map("finalize_tx_hash")
-  finalizedAt        DateTime?       @map("finalized_at")
-  state              PublishJobState
-  attempts           Int             @default(0)
-  lastError          String?         @map("last_error")
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
-
-  @@index([wallet])
-  @@index([sha256])
-  @@index([state])
-  @@unique([reservationId])
-  @@map("publish_jobs")
 }
