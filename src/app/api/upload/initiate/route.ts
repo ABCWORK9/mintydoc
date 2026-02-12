@@ -14,7 +14,12 @@ const SHA256_RE = /^[0-9a-f]{64}$/;
 export async function POST(req: Request) {
   let jobId: string | null = null;
   try {
-    const body = (await req.json()) as InitiateBody;
+    let body: InitiateBody;
+    try {
+      body = (await req.json()) as InitiateBody;
+    } catch {
+      return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+    }
     const wallet = body?.wallet?.trim().toLowerCase();
     if (!wallet) {
       return NextResponse.json({ error: "invalid_wallet" }, { status: 400 });
@@ -50,7 +55,7 @@ export async function POST(req: Request) {
     const bucket = process.env.AWS_S3_BUCKET;
     if (!bucket) {
       return NextResponse.json(
-        { error: "missing_bucket" },
+        { error: "server_misconfigured" },
         { status: 500 }
       );
     }
@@ -58,6 +63,7 @@ export async function POST(req: Request) {
     const job = await createJob({ wallet, sha256, sizeBytes, ip: null });
     jobId = job.id;
     const key = `uploads/${job.id}/${sha256}`;
+    await updateJob(job.id, { objectKey: key });
 
     try {
       const { uploadId } = await initiateMultipartUpload({
@@ -73,7 +79,6 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         jobId: job.id,
-        bucket,
         key,
         uploadId,
       });
@@ -94,7 +99,7 @@ export async function POST(req: Request) {
       });
     }
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "initiate_failed" },
+      { error: "initiate_failed" },
       { status: 500 }
     );
   }
