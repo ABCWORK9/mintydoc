@@ -1,8 +1,28 @@
 import { NextResponse } from "next/server";
-import { getJobById } from "@/server/db/publishJobs";
+import { randomBytes } from "crypto";
+import { keccak256, encodePacked } from "viem";
+import { getJobById, updateJob } from "@/server/db/publishJobs";
+import { getPriceQuote } from "@/server/pricing/policy";
+import { signReserveDigest } from "@/server/signer/localSigner";
+
 type IntentBody = {
   jobId: string;
+  payer: `0x${string}`;
 };
+
+const EXPIRES_IN_SECONDS = 10 * 60;
+
+function normalizeAddress(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isHexAddress(value: string) {
+  return /^0x[0-9a-fA-F]{40}$/.test(value);
+}
+
+function generateNonceHex() {
+  return `0x${randomBytes(32).toString("hex")}`;
+}
 
 export async function POST(req: Request) {
   try {
@@ -17,6 +37,12 @@ export async function POST(req: Request) {
     if (!jobId) {
       return NextResponse.json({ error: "invalid_jobId" }, { status: 400 });
     }
+
+    const payerRaw = body?.payer;
+    if (!payerRaw?.trim() || !isHexAddress(payerRaw)) {
+      return NextResponse.json({ error: "invalid_payer" }, { status: 400 });
+    }
+    const payer = normalizeAddress(payerRaw) as `0x${string}`;
 
     const job = await getJobById(jobId);
     if (!job) {
@@ -38,7 +64,7 @@ export async function POST(req: Request) {
     }
 
     const chainId = Number(process.env.CHAIN_ID ?? 0);
-    const contractAddress = process.env.DOC_PAY_GO_ADDRESS;
+    const contractAddress = process.env.DOC_PAY_GO_ADDRESS as `0x${string}` | undefined;
     if (!chainId || !contractAddress) {
       return NextResponse.json(
         { error: "server_misconfigured" },
@@ -46,10 +72,103 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json(
-      { error: "reserve_args_unavailable" },
-      { status: 409 }
+    if (job.reservePayer && job.reservePayer.toLowerCase() !== payer) {
+      return NextResponse.json(
+        { code: "reserve_payer_mismatch" },
+        { status: 409 }
+      );
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const existingExpiresAt = job.reserveExpiresAt
+      ? Number(job.reserveExpiresAt)
+      : null;
+    const hasValidQuote =
+      job.reservePriceCents !== null &&
+      job.reserveNonce &&
+      existingExpiresAt !== null &&
+      nowSec <= existingExpiresAt;
+
+    let priceCents = job.reservePriceCents ?? null;
+    let expiresAt = existingExpiresAt ?? null;
+    let nonceHex = job.reserveNonce ?? null;
+
+    if (!hasValidQuote) {
+      const quote = await getPriceQuote({ sizeBytes: Number(job.sizeBytes) });
+      priceCents = quote.priceCents;
+      expiresAt = nowSec + EXPIRES_IN_SECONDS;
+      nonceHex = generateNonceHex();
+
+      await updateJob(job.id, {
+        reservePayer: payer,
+        reservePriceCents: priceCents,
+        reserveExpiresAt: BigInt(expiresAt),
+        reserveNonce: nonceHex,
+        reserveIntentCreatedAt: new Date(),
+      });
+    } else if (!job.reservePayer) {
+      await updateJob(job.id, { reservePayer: payer });
+    }
+
+    if (priceCents === null || expiresAt === null || !nonceHex) {
+      return NextResponse.json(
+        { error: "server_inconsistent_state" },
+        { status: 500 }
+      );
+    }
+
+    const nonceBigInt = BigInt(nonceHex);
+    const sizeBytesBigInt = BigInt(job.sizeBytes);
+
+    const reservationId = keccak256(
+      encodePacked(
+        ["address", "address", "uint64", "uint32", "uint40", "uint256"],
+        [
+          contractAddress,
+          payer,
+          sizeBytesBigInt,
+          BigInt(priceCents),
+          BigInt(expiresAt),
+          nonceBigInt,
+        ]
+      )
     );
+
+    if (job.reserveReservationId && job.reserveReservationId !== reservationId) {
+      return NextResponse.json(
+        { code: "reserve_reservation_id_mismatch" },
+        { status: 409 }
+      );
+    }
+
+    if (!job.reserveReservationId) {
+      await updateJob(job.id, { reserveReservationId: reservationId });
+    }
+
+    const signature = await signReserveDigest({
+      contractAddress,
+      payer,
+      sizeBytes: sizeBytesBigInt,
+      priceCents,
+      expiresAt,
+      nonce: nonceBigInt,
+    });
+
+    const nonceDecimal = nonceBigInt.toString();
+
+    return NextResponse.json({
+      chainId,
+      contractAddress,
+      functionName: "reservePost",
+      args: [
+        sizeBytesBigInt.toString(),
+        priceCents,
+        String(expiresAt),
+        nonceDecimal,
+        signature,
+      ],
+      value: "0",
+    });
   } catch {
     return NextResponse.json({ error: "intent_failed" }, { status: 500 });
   }
